@@ -1,0 +1,82 @@
+---
+title: "Import"
+output: html_document
+date: "2024-02-05"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+```
+
+```{r faeces data}
+faecesCounts = read.csv("./faeces_asv.csv") %>% as_tibble()
+faecesCounts.numeric = faecesCounts %>% select(-X) # verified to be stored in the same order in meta
+faecesCounts.numeric = faecesCounts.numeric %>% select(order(colnames(faecesCounts.numeric)))
+write.table(faecesCounts.numeric, "./faecesCounts.csv", row.names=FALSE, col.names=FALSE)
+
+faecesMeta = read.csv("./faeces_asv_meta.csv") %>% as_tibble()
+faecesMeta = faecesMeta %>% mutate(subject = str_split_fixed(faecesMeta[,2] %>% pull(), "_", 2)[,1])
+write.table(faecesMeta, "./faeces_sampleMeta.csv", row.names=FALSE, col.names=FALSE)
+
+# Taxonomy
+taxonomy = read.csv("./taxonomy.tsv", sep="\t", header=FALSE) %>% as_tibble()
+newTaxonomy_faeces = cbind(taxonomy[,1], str_split_fixed(taxonomy$V2, ";", 7)) %>% filter(V1 %in% colnames(faecesCounts.numeric)) %>% arrange(V1)
+write.table(newTaxonomy_faeces, "./newTaxonomy_faeces.csv", row.names=FALSE, col.names=FALSE)
+
+#all.equal(colnames(faecesCounts.numeric), newTaxonomy_faeces$V1)
+```
+
+```{r milk microbiome data}
+milkCounts = read.csv("./milk_asv.csv") %>% as_tibble()
+milkCounts.numeric = milkCounts %>% select(-X) # verified to be stored in the same order in meta
+milkCounts.numeric = milkCounts.numeric %>% select(order(colnames(milkCounts.numeric)))
+write.table(milkCounts.numeric, "./milkCounts.csv", row.names=FALSE, col.names=FALSE)
+
+milkMeta = read.csv("./milk_asv_meta.csv") %>% as_tibble()
+milkMeta = milkMeta %>% mutate(subject = str_split_fixed(milkMeta[,2] %>% pull(), "_", 2)[,1])
+write.table(milkMeta, "./milk_sampleMeta.csv", row.names=FALSE, col.names=FALSE)
+
+# Taxonomy
+taxonomy = read.csv("./taxonomy.tsv", sep="\t", header=FALSE) %>% as_tibble()
+newTaxonomy_milk = cbind(taxonomy[,1], str_split_fixed(taxonomy$V2, ";", 7)) %>% filter(V1 %in% colnames(milkCounts.numeric)) %>% arrange(V1)
+write.table(newTaxonomy_milk, "./newTaxonomy_milk.csv", row.names=FALSE, col.names=FALSE)
+
+#all.equal(colnames(milkCounts.numeric), newTaxonomy_milk$V1)
+```
+
+```{r milk metabolomics data}
+milkMetab = read.csv("./milk_metab.csv") %>% as_tibble()
+milkMetab.numeric = milkMetab %>% select(-RCID) # verified to be stored in the same order in meta
+
+milkMetabMeta = read.csv("./milk_metab_meta.csv") %>% as_tibble()
+milkMetabMeta = milkMetabMeta %>% mutate(subject = str_split_fixed(milkMetabMeta[,1] %>% pull(), "_", 2)[,1])
+
+# Find detection limits
+detectionLimits = rep(NA, ncol(milkMetab.numeric))
+for(j in 1:ncol(milkMetab.numeric)){
+  values = milkMetab.numeric[,j]
+  nonzero = values[values>0]
+  detectionLimits[j] = min(nonzero)
+}
+
+# Impute 0s with a random value between 0 and the detection limit
+set.seed(123)
+for(j in 1:ncol(milkMetab.numeric)){
+  values = milkMetab.numeric[,j]
+  missing = which(values == 0)
+  
+  if(length(missing) > 0){
+    for(k in 1:length(missing)){
+      index = missing[k]
+      milkMetab.numeric[index,j] = runif(1, min=0, max=detectionLimits[j])
+    }
+  }
+}
+
+write.table(milkMetab.numeric, "./milkMetabNumeric.csv", row.names=FALSE, col.names=FALSE)
+
+# For mapping to things?
+CASnumbers = read.csv("./milk_metab_CAS_numbers.csv") %>% as_tibble()
+```

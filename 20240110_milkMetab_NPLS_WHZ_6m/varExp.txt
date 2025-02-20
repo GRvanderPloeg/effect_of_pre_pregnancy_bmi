@@ -1,0 +1,6 @@
+Percent Variance Captured by N-PLS Model   
+  
+           -----X-Block-----    -----Y-Block-----
+   LV #    Fitted     Xval      Fitted     Xval       RMSEP
+   ----    -------   -------    -------   -------   ---------
+     1       2.97      2.67      13.40    -11.64    1.1942
